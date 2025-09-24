@@ -1,0 +1,239 @@
+let playerInstance = jwplayer("vplayer");
+let playerRetry = 0;
+
+let notyf = new Notyf({
+  duration: 4000,
+  dismissible: true,
+  position: {
+    x: 'right',
+    y: 'top',
+}});
+
+$(document).ready(function(){
+    routePlayer();
+});
+
+function routePlayer()
+{
+    let type = getURLParameterByName("t");
+    let id = getURLParameterByName("id");
+    if(type !== "tv" && type !== "event")
+    {
+        notyf.error("Error: Stream Type is Invalid");
+        return;
+    }
+    else if(id === undefined || id === null || id === "")
+    {
+        notyf.error("Error: Stream Identifier Missing");
+        return;
+    }
+    else
+    {
+        if(type == "event")
+        {
+            document.title = "Live Match | " + atob(uuadmo);
+            getEventDetail();
+        }
+        else if(type == "tv")
+        {
+            $("#btnPlayerInfox").hide();
+            document.title = "Streaming Live | " + atob(uuadmo);
+            getTVDetail();
+        }
+        else
+        {
+            $("#btnPlayerInfox").html('<i class="fas fa-info"></i>');
+            notyf.error("500 :: APPLICATION FAILED TO START");
+            return;
+        }
+    }
+}
+
+function getEventDetail()
+{
+    let id = getURLParameterByName("id");
+    $.ajax({
+        "url": "api.php",
+        "type": "POST",
+        "data": "action=detail_event&id=" + id,
+        "success": function(data) {
+            $("#btnPlayerInfox").html('<i class="fas fa-info"></i>');
+            try { data = JSON.parse(data); }catch(err){}
+            if(data.status == "success")
+            {
+                document.title = data.data.match_name + " | " + atob(uuadmo);
+                if (Array.isArray(data.data.stream_urls) && data.data.stream_urls.length === 0)
+                {
+                    notyf.error("Match Has Not Started Yet");
+                    $("#playerInfoModalLabel").html("Upcoming Match");
+                    $("#playerInfoModalBody").html(`<div class="mt-3 text-center fw-bold" style="font-size: 24px;">` + data.data.match_name + `</div><br/><p class="text-center">This Stream will begin @<div class="p-1 text-center text-danger" style="font-size: 25px;" id="upcomingmatchcountdown"></div></p>`);
+                    $("#playerInfoModal").modal("show");
+                    startCountdown(data.data.start_time);
+                }
+                else
+                {
+                    $("#playerInfoModalLabel").html("Playing Now (Server 1)");
+                    $("#playerInfoModalBody").html(`
+                        <div class="mt-3 text-center fw-bold" style="font-size: 24px;">
+                            ${data.data.match_name}
+                        </div>
+                        <div class="d-flex justify-content-center flex-wrap gap-2 mt-4" id="serverButtons"></div>
+                    `);
+                    
+                    let usz = 0;
+                    $.each(data.data.stream_urls, function(q, r) {
+                        usz++;
+                        $("#serverButtons").append(`
+                            <button class="btn btn-danger px-3 rounded-pill mb-2" onclick="changePlaybackServer(this)" data-sn=` + usz + ` data-url="` + r.url + `">Server ${usz}</button>
+                        `);
+                    });
+                    notyf.success("Streaming via Server 1");
+                    setup_hls_player("", data.data.stream_urls[0]['url']);
+                }
+            }
+            else if(data.status == "error")
+            {
+                notyf.error(data.message);
+                return;
+            }
+            else
+            {
+                notyf.error("Server Sent The Invalid Data");
+                return;
+            }
+        },
+        "error": function(data) {
+            $("#btnPlayerInfox").html('<i class="fas fa-info"></i>');
+            notyf.error("Something Went Wrong");
+            return;
+        }
+    });
+}
+
+function changePlaybackServer(t)
+{
+    let server_no = $(t).attr("data-sn");
+    let stream_url = $(t).attr("data-url");
+    $("#playerInfoModalLabel").html("Playing Now (Server " + server_no + ")");
+    notyf.success("Streaming via Server " + server_no);
+    setup_hls_player("", stream_url);
+    $("#playerInfoModal").modal("hide");
+}
+
+function getTVDetail()
+{
+    let id = getURLParameterByName("id");
+    $.ajax({
+        "url": "api.php",
+        "type": "POST",
+        "data": "action=detail_tv&id=" + id,
+        "success": function(data) {
+            try { data = JSON.parse(data); }catch(err){}
+            if(data.status == "success")
+            {
+                document.title = data.data.title + " | " + atob(uuadmo);
+                setup_hls_player(data.data.logo, data.data.streamurl_pxy);
+            }
+            else if(data.status == "error")
+            {
+                notyf.error(data.message);
+                return;
+            }
+            else
+            {
+                notyf.error("Server Sent The Invalid Data");
+                return;
+            }
+        },
+        "error": function(data) {
+            notyf.error("Something Went Wrong");
+            return;
+        }
+    });
+}
+
+function startCountdown(startTimestamp)
+{
+    let target = parseInt(startTimestamp, 10) * 1000;
+    function updateCountdown()
+    {
+        let now = new Date().getTime();
+        let diff = target - now;
+        if (diff <= 0) {
+            $("#upcomingmatchcountdown").html("Live Now!");
+            clearInterval(timer);
+            return;
+        }
+        let seconds = Math.floor((diff / 1000) % 60);
+        let minutes = Math.floor((diff / (1000 * 60)) % 60);
+        let hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        let days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        let formatted = "";
+        if (days > 0) {
+            formatted += days + "d ";
+        }
+        if (days > 0 || hours > 0) {
+            formatted += hours + "h ";
+        }
+        formatted += minutes + "m " + seconds + "s";
+        $("#upcomingmatchcountdown").html(formatted.trim());
+    }
+    updateCountdown();
+    let timer = setInterval(updateCountdown, 1000);
+}
+
+function setup_hls_player(logo, link)
+{
+    playerInstance.setup({
+        sources: [{ file: link }],
+        image: logo,
+        width: '100%',
+        height: '100%',
+        stretching: 'uniform',
+        preload: 'auto',
+        mute: false
+    });
+
+    playerInstance.on('error', function(error)
+    {
+        if(playerRetry === 0)
+        {
+            playerRetry = 1;
+            notyf.error("Stream Error. Retrying 1/3");
+            window.setTimeout(function(){ routePlayer(); }, 2000);
+        }
+        else if(playerRetry === 1)
+        {
+            playerRetry = 2;
+            notyf.error("Stream Error. Retrying 2/3");
+            window.setTimeout(function(){ routePlayer(); }, 2000);
+        }
+        else if(playerRetry === 2)
+        {
+            playerRetry = 3;
+            notyf.error("Stream Error. Retrying 3/3");
+            window.setTimeout(function(){ routePlayer(); }, 2000);
+        }
+        else
+        {
+            notyf.error("Streaming Server Is Down");
+        }
+        
+    });
+
+    playerInstance.on('setupError', function(error) {
+        console.error('JW Player setup error:', error.message);
+        notyf.error('JW Player setup failed: ' + error.message);
+    });
+
+    /*playerInstance.on('ready', function() {
+        console.log('JW Player is ready.');
+        notyf.success('Player Started');
+    });*/
+}
+
+function getURLParameterByName(name) {
+  const url = new URL(window.location.href);
+  const params = new URLSearchParams(url.search);
+  return params.get(name);
+}

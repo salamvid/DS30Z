@@ -315,6 +315,45 @@ body
 
 </style><style class="darkreader darkreader--sync" media="screen"></style>
 </head>
+
+<!-- شعار المشغل -->
+<a href="http://www.dawrisport.com" target="_blank" id="player-logo">
+  <img src="//i.imgur.com/sMcykIA.png" alt="Logo">
+</a>
+
+<style>
+  #player-logo {
+    position: absolute;
+    top: 30px;     /* غيرها إلى top:10px لو تريد بالأعلى */
+    right: 10px;
+    z-index: 9999;
+  }
+  #player-logo img {
+    max-width: 120px;
+    height: auto;
+    opacity: 0.9;
+    transition: opacity 0.3s;
+  }
+  #player-logo img:hover {
+    opacity: 1;
+  }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var video = document.getElementById("video");
+  if(video) {
+    video.muted = false;   // إلغاء الكتم
+    video.volume = 1.0;    // رفع الصوت
+    video.play().catch(function(e){
+      console.log("Autoplay blocked by browser:", e);
+    });
+  }
+});
+</script>
+
+
+    
 <body>
     <div data-shaka-player-container="" style="position: absolute; z-index: -1; top: 0px; left: 0px; width: 100%; height: 100%; object-fit: cover; cursor: none;" shaka-controls="true" class="shaka-video-container">
     <video autoplay="" muted="" data-shaka-player="" id="video" poster="https://tv.tflix.app/wp-content/uploads/2025/05/tlfixweblogo.png" style="width: 100%; height: 100%;" class="shaka-video" src="blob:https://topstream.space/683bfcf6-8cdc-44fe-bd07-5ec468749edc"></video>

@@ -314,6 +314,19 @@ body
 }
 
 </style><style class="darkreader darkreader--sync" media="screen"></style>
+
+<!-- منع فتح أدوات المطور في بلوجر -->
+<script src='https://cdn.jsdelivr.net/npm/disable-devtool@latest'/>
+<script type='text/javascript'>
+// تفعيل المنع
+DisableDevtool({
+  disableMenu: true, // تعطيل كليك يمين
+  ondevtoolopen: function() {
+    window.location.href = &quot;https://www.dawrisport.com/p/contact-us.html&quot;; // يوجه الزائر للرابط المطلوب مباشرة
+  }
+});
+</script>
+    
 </head>
 
 <!-- شعار المشغل -->

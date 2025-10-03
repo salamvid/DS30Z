@@ -315,17 +315,22 @@ body
 
 </style><style class="darkreader darkreader--sync" media="screen"></style>
 
-<!-- منع فتح أدوات المطور في بلوجر -->
-<script src='https://cdn.jsdelivr.net/npm/disable-devtool@latest'/>
-<script type='text/javascript'>
-// تفعيل المنع
-DisableDevtool({
-  disableMenu: true, // تعطيل كليك يمين
-  ondevtoolopen: function() {
-    window.location.href = &quot;https://www.dawrisport.com/p/contact-us.html&quot;; // يوجه الزائر للرابط المطلوب مباشرة
-  }
-});
+<!-- ضع هذا في أسفل body -->
+<script disable-devtool-auto src="https://cdn.jsdelivr.net/npm/disable-devtool@latest"></script>
+<script>
+  // لو أردت ضبط دوال ردّ الفعل:
+  DisableDevtool({
+    disableMenu: true, // يمنع قائمة الزر الأيمن
+    disableCopy: true, // يمنع النسخ (ليس مضموناً)
+    ondevtoolopen: function(type, next){
+      // إعادة التوجيه عند فتح الأدوات
+      location.href = "https://www.dawrisport.com/p/contact-us.html";
+      // أو استخدم next() لإغلاق النافذة بعد الإشعار
+      // next();
+    }
+  });
 </script>
+
     
 </head>
 

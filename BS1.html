@@ -1,0 +1,229 @@
+
+  <!--ي&#1615;فض&#1617;ل https بدل // لتفادي مشاكل التحميل من file://-->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+  <script src="https://content.jwplatform.com/libraries/SAHhwvZq.js"></script>
+
+  <!--خط Cairo للديالوج-->
+  <link href="https://fonts.googleapis.com" rel="preconnect"></link>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"></link>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&amp;display=swap" rel="stylesheet"></link>
+
+  <style>
+    * { margin: 0; padding: 0; outline: none; box-sizing: border-box; }
+    html, body {
+      height: 100%; width: 100%; overflow: hidden; background: #000;
+      font-family: system-ui, -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif;
+    }
+    #container { position: absolute; width: 100%!important; height: 100%!important; }
+
+    /* إظهار أيقونة التحميل بقوة */
+    .jwplayer .jw-icon-spinning { display: block !important; opacity: 1 !important; visibility: visible !important; }
+    .jwplayer.jw-state-playing:not(.jw-flag-buffering) .jw-icon-spinning { display: none !important; }
+
+    /* شاشة الأخطاء */
+    .error-container {
+      color: #fff; text-align: center; width: 100%; height: 100%;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;
+    }
+    .error-container h2 { color: #00aaff; margin-bottom: 16px; font-size: 2em; }
+    .error-container p { color: #ccc; line-height: 1.6; }
+
+    /* ============ Servers Dialog (خفيف فوق الافتراضي) ============ */
+    .dlg-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: none; align-items: center; justify-content: center; z-index: 9999;
+    }
+    .dlg { width: min(92vw, 380px); background: #0f1218; color: #e8ecf4;
+      border: 1px solid rgba(255,255,255,.08); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.5);
+      overflow: hidden; transform: translateY(8px); opacity: .98;
+      /* خط Cairo للديالوج وكل عناصره */
+      font-family: 'Cairo', system-ui, -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif;
+    }
+    .dlg * { font-family: inherit; }
+    .dlg-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .dlg-title { font-weight: 800; }
+    .dlg-close { border: 0; background: #1a1f2b; color: #fff; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-weight: 700; }
+    .dlg-body { max-height: 60vh; overflow: auto; padding: 10px; }
+    .srv-item {
+      display: grid; grid-template-columns: 1fr auto; align-items: center;
+      padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; cursor: pointer;
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+    }
+    .srv-item:hover { background: rgba(255,255,255,.06); }
+    .srv-item.active { border-color: #0ea5e9; box-shadow: 0 0 0 2px rgba(14,165,233,.25) inset; }
+    .srv-name { font-weight: 700; }
+    .srv-badge { font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 999px;
+      background: linear-gradient(135deg,#0ea5e9,#22d3ee); color: #0b1020;
+    }
+  </style>
+
+  </p><div id="container"></div>
+
+  <!--Servers Dialog-->
+  <div aria-hidden="true" class="dlg-backdrop" id="dlgBackdrop">
+    <div aria-labelledby="dlgTitle" aria-modal="true" class="dlg" role="dialog">
+      <div class="dlg-header">
+        <div class="dlg-title" id="dlgTitle">اختيار السيرفر</div>
+        <button class="dlg-close" id="dlgClose">إغلاق</button>
+      </div>
+      <div class="dlg-body" id="dlgBody"></div>
+    </div>
+  </div>
+
+  <script>
+    jwplayer.key = "ITWMv7t88JGzI0xPwW8I0+LveiXX9SWbfdmt0ArUSyc=";
+
+    // ====== تعريف السيرفرات ======
+    const SERVERS = [
+      {
+        name: "Multi 50fps",
+        live: true,
+        url: "https://joaan-tv.com/bassam/x.php/play?src=https://prod-fastly-eu-central-1.video.pscp.tv/Transcoding/v1/hls/te-GiL7p4G-l0XWjXuXnVAa-C9_aapTiDQ21HPRJwXYfuzLg_B6Q1F0OtlmC-nqWN7c9twJXaOmm1cCz9Vpkyw/non_transcode/eu-central-1/periscope-replay-direct-prod-eu-central-1-public/master_dynamic_highlatency.m3u8?type=live"
+      },
+      {
+        name: "Multi 30fps",
+        live: true,
+        url: "https://joaan-tv.com/bassam/x.php/play?src=https://prod-fastly-eu-central-1.video.pscp.tv/Transcoding/v1/hls/te-GiL7p4G-l0XWjXuXnVAa-C9_aapTiDQ21HPRJwXYfuzLg_B6Q1F0OtlmC-nqWN7c9twJXaOmm1cCz9Vpkyw/non_transcode/eu-central-1/periscope-replay-direct-prod-eu-central-1-public/master_dynamic_highlatency.m3u8?type=live"
+      }
+    ];
+
+    // ====== حالة المشغ&#1617;ل ======
+    let player;
+    // دائما&#1611; نبدأ بالسيرفر الأول (لا نستخدم localStorage)
+    let currentServer = 0;
+    const stretchingModes = ["uniform","fill","exactfit","none"];
+    const modeLabels = { uniform: "افتراضي", fill: "ملء", exactfit: "تمدد", none: "أصلي" };
+    let currentModeIndex = 0; // أيض&#1611;ا لا نحفظ وضع التمدد بين الزيارات
+
+    // ====== ديالوج السيرفرات ======
+    const dlgBackdrop = document.getElementById("dlgBackdrop");
+    const dlgBody = document.getElementById("dlgBody");
+    const dlgClose = document.getElementById("dlgClose");
+
+    function openServersDialog() {
+      // بناء العناصر (كل مرة نفتح فيها عشان تكون محدثة)
+      dlgBody.innerHTML = "";
+      SERVERS.forEach((s, i) => {
+        const item = document.createElement("div");
+        item.className = "srv-item" + (i === currentServer ? " active" : "");
+        const name = document.createElement("div");
+        name.className = "srv-name";
+        name.textContent = s.name;
+        const badge = document.createElement("div");
+        badge.className = "srv-badge";
+        badge.textContent = s.live ? "LIVE" : "VOD";
+        item.appendChild(name);
+        item.appendChild(badge);
+        item.onclick = () => {
+          if (i !== currentServer) {
+            const pos = (player && typeof player.getPosition === "function") ? (player.getPosition() || 0) : 0;
+            currentServer = i;
+            setupJWPlayer(SERVERS[i].url, pos);
+          }
+          closeServersDialog();
+        };
+        dlgBody.appendChild(item);
+      });
+      dlgBackdrop.style.display = "flex";
+    }
+    function closeServersDialog() { dlgBackdrop.style.display = "none"; }
+    dlgClose.onclick = closeServersDialog;
+    dlgBackdrop.addEventListener("click", (e) => {
+      if (e.target === dlgBackdrop) closeServersDialog();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeServersDialog();
+    });
+
+    // زر الـ Expand &#8212; SVG كامل
+    const expandSvg = `
+<svg fill="#ffffff" version="1.1" id="expand_icon" xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 100 100" xml:space="preserve">
+  <g>
+    <path d="M22.661,20.5H36c1.104,0,2-0.896,2-2s-0.896-2-2-2H19c-1.104,0-2.5,1.276-2.5,2.381v17c0,1.104,0.896,2,2,2s2-0.896,2-2V24.876l16.042,15.791
+      c0.391,0.391,1.027,0.586,1.539,0.586s1.086-0.195,1.477-0.586c0.781-0.781,0.812-2.237,0.031-3.019L22.661,20.5z"/>
+    <path d="M83,16.5H66c-1.104,0-2,0.896-2,2s0.896,2,2,2h12.605L61.647,37.648c-0.781,0.781-0.781,2.142,0,2.923
+      c0.39,0.391,0.902,0.633,1.414,0.633s0.774-0.171,1.164-0.562l16.274-16.5v11.738c0,1.104,0.896,2,2,2s2-0.896,2-2v-17
+      C84.5,17.776,84.104,16.5,83,16.5z"/>
+    <path d="M36.542,60.962L20.5,76.754V65.881c0-1.104-0.896-2-2-2s-2,0.896-2,2v17c1.104,0,1.396,1.619,2.5,1.619h17
+      c1.104,0,2-0.896,2-2s-0.896-2-2-2H22.529L39.62,63.6c0.781-0.781,0.656-1.951-0.125-2.732
+      C38.715,60.086,37.322,60.181,36.542,60.962z"/>
+    <path d="M82.5,63.881c-1.104,0-2,0.896-2,2v11.606L64.226,60.962c-0.78-0.781-1.923-0.781-2.703,0
+      c-0.781-0.781-0.719,1.856,0.062,2.638l17.152,16.9H66c-1.104,0-2,0.896-2,2s0.896,2,2,2h17c1.104,0,1.5-0.515,1.5-1.619v-17
+      C84.5,64.776,83.604,63.881,82.5,63.881z"/>
+  </g>
+</svg>`.trim();
+
+    // أيقونة السيرفرات (3 خطوط)
+    const serversSvg = `
+<svg fill="#ffffff" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 6h16v2H4V6zm0 5h10v2H4v-2zm0 5h16v2H4v-2z"/>
+</svg>`.trim();
+
+    function displayStatusMessage(title, message) {
+      const container = document.getElementById('container');
+      if (container) {
+        container.innerHTML = '<div class="error-container"><h2>' + title + '</h2><p>' + message + '</p></div>';
+      }
+    }
+
+    function setupButtonsInsidePlayer() {
+      try {
+        // زر التمديد
+        player.addButton(expandSvg, `وضع التمدد: ${modeLabels[stretchingModes[currentModeIndex]]}`, function () {
+          currentModeIndex = (currentModeIndex + 1) % stretchingModes.length;
+          const mode = stretchingModes[currentModeIndex];
+          player.setConfig({ stretching: mode });
+          try { this.tooltip.setText(`وضع التمدد: ${modeLabels[mode] || mode}`); } catch(_){}
+        }, "stretch-cycle-button");
+      } catch (e) { /* ignore */ }
+
+      try {
+        // زر السيرفرات &#8594; يفتح الديالوج
+        player.addButton(serversSvg, "السيرفرات", function () {
+          openServersDialog();
+        }, "servers-button");
+      } catch (e) { /* ignore */ }
+    }
+
+    function setupJWPlayer(fileUrl, resumeAt) {
+      player = jwplayer("container").setup({
+        file: fileUrl,
+        autostart: true,
+        mute: true,
+        width: "100%",
+        height: "100%",
+        controls: true,
+        stretching: stretchingModes[currentModeIndex],
+      });
+
+      player.on("ready", function () {
+        // نضيف الأزرار داخل المشغ&#1617;ل
+        let ok = false;
+        try { setupButtonsInsidePlayer(); ok = true; } catch(_) {}
+        if (!ok) setTimeout(()=>{ try { setupButtonsInsidePlayer(); } catch(_) {} }, 50);
+
+        if (resumeAt && resumeAt > 1) {
+          const t = Number(resumeAt);
+          const doSeek = () => { try { player.seek(t); } catch(_){} };
+          if (typeof player.once === "function") player.once("firstFrame", doSeek);
+          else player.on("firstFrame", doSeek);
+        }
+      });
+
+      player.on("error", (event) => {
+        console.error("[PLAYER ERROR]", event);
+        displayStatusMessage("حدث خطأ", `تعذر تشغيل البث (${event.code || "Unknown"})`);
+      });
+    }
+
+    // ====== تشغيل السيرفر الأول دائم&#1611;ا ======
+    try {
+      setupJWPlayer(SERVERS[0].url);
+    } catch (e) {
+      console.error("Fatal error initializing player:", e);
+      displayStatusMessage("خطأ فادح", "لم يتم تحميل المشغل بشكل صحيح.");
+    }
+  </script>
+  
